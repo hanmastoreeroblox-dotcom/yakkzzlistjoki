@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>YAKKZZ STORE</title>
+<style>
+body{font-family:sans-serif;background:#0f172a;color:#fff;text-align:center}
+.container{max-width:400px;margin:auto;padding:20px}
+input,textarea,select{width:100%;padding:10px;margin:5px 0;border-radius:6px;border:none}
+button{background:#00c6ff;border:none;padding:12px;color:#fff;border-radius:8px;width:100%}
+.box{background:#1e293b;padding:15px;border-radius:10px;margin-top:15px}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<div class="container">
+<h2>🔥 YAKKZZ STORE</h2>
+
+<div id="menu1" class="box">
+<select id="joki">
+<option>Raid</option>
+<option>Leveling</option>
+<option>CDK</option>
+</select>
+<button onclick="next1()">Lanjut</button>
+</div>
+
+<div id="menu2" class="box hidden">
+<input id="user" placeholder="Username">
+<input id="pass" placeholder="Password">
+<textarea id="note" placeholder="Note"></textarea>
+<input id="bc1" placeholder="Backup Code 1">
+<input id="bc2" placeholder="Backup Code 2">
+<input id="bc3" placeholder="Backup Code 3">
+<input id="bc4" placeholder="Backup Code 4">
+<input id="bc5" placeholder="Backup Code 5">
+<button onclick="next2()">Bayar</button>
+</div>
+
+<div id="menu3" class="box hidden">
+<input type="file" id="bukti" accept="image/*">
+<button onclick="kirim()">Saya Sudah Bayar</button>
+</div>
+
+<div id="statusBox" class="box"></div>
+
+<div class="box">
+<input id="adminUser" placeholder="admin">
+<input id="adminPass" placeholder="password">
+<button onclick="login()">Login Admin</button>
+</div>
+
+<div id="adminPanel" class="box hidden"></div>
+
+</div>
+
+<script>
+function val(id){return document.getElementById(id).value}
+
+function next1(){
+ document.getElementById("menu1").classList.add("hidden");
+ document.getElementById("menu2").classList.remove("hidden");
+}
+
+function next2(){
+ if(!val("user")||!val("pass")) return alert("Isi akun!");
+ document.getElementById("menu2").classList.add("hidden");
+ document.getElementById("menu3").classList.remove("hidden");
+}
+
+async function kirim(){
+ const file = document.getElementById("bukti").files[0];
+ if(!file) return alert("Upload bukti!");
+
+ const reader = new FileReader();
+ reader.onload = async function(){
+  const res = await fetch("/api/order",{
+   method:"POST",
+   headers:{"Content-Type":"application/json"},
+   body:JSON.stringify({
+    joki: val("joki"),
+    user: val("user"),
+    pass: val("pass"),
+    note: val("note"),
+    bc1: val("bc1"),
+    bc2: val("bc2"),
+    bc3: val("bc3"),
+    bc4: val("bc4"),
+    bc5: val("bc5"),
+    bukti: reader.result
+   })
+  });
+
+  const json = await res.json();
+  alert("ORDER ID: "+json.id);
+  localStorage.setItem("id",json.id);
+  loadStatus();
+  window.open("https://wa.me/62895622759784?text=ORDER%20"+json.id);
+ }
+ reader.readAsDataURL(file);
+}
+
+async function loadStatus(){
+ const id = localStorage.getItem("id");
+ if(!id) return;
+
+ const res = await fetch("/api/order");
+ const data = await res.json();
+ const o = data.find(x=>x.id===id);
+
+ if(o){
+  document.getElementById("statusBox").innerHTML =
+  "ID: "+o.id+"<br>Status: "+o.status;
+ }
+}
+
+window.onload = loadStatus;
+
+async function login(){
+ if(val("adminUser")!=="jokibang"||val("adminPass")!=="oke"){
+  return alert("Salah");
+ }
+
+ const res = await fetch("/api/order");
+ const data = await res.json();
+
+ let html = "";
+ data.forEach(o=>{
+  html+=`
+  <div class="box">
+   ${o.id}<br>${o.user}<br>${o.status}<br>
+   <select onchange="update('${o.id}',this.value)">
+    <option>⏳ Pending</option>
+    <option>🔵 Diproses</option>
+    <option>✅ Selesai</option>
+   </select>
+  </div>`;
+ });
+
+ document.getElementById("adminPanel").innerHTML = html;
+ document.getElementById("adminPanel").classList.remove("hidden");
+}
+
+async function update(id,status){
+ await fetch("/api/order",{
+  method:"PUT",
+  headers:{
+   "Content-Type":"application/json",
+   "Authorization":"Bearer "+prompt("Masukin ADMIN_TOKEN")
+  },
+  body:JSON.stringify({id,status})
+ });
+ alert("Updated!");
+}
+</script>
+</body>
+</html>
